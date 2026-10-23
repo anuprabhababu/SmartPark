@@ -1,74 +1,74 @@
+
 const $ = (selector) => document.querySelector(selector);
 
 let chart = null;
 
 // API helper
 async function api(url, options = {}) {
-    const response = await fetch(url, {
-        headers: { "Content-Type": "application/json" },
-        ...options
-    });
+  const response = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    ...options
+  });
 
-    const data = await response.json().catch(() => ({}));
+  const data = await response.json().catch(() => ({}));
 
-    if (!response.ok) {
-        throw new Error(data.error || "Request failed.");
-    }
+  if (!response.ok) {
+    throw new Error(data.error || "Request failed.");
+  }
 
-    return data;
+  return data;
 }
 
 // Escape values before inserting them into HTML
 function esc(value) {
-    return String(value ? ? "").replace(/[&<>"']/g, (c) => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#039;"
-    })[c]);
+  return String(value ?? "").replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;"
+  })[character]);
 }
 
-// Display notification messages
+// Display notifications
 function message(text, type = "success") {
-    const el = $("#message");
+  const element = $("#message");
 
-    if (!el) return;
+  if (!element) return;
 
-    el.textContent = text;
-    el.className = `message ${type}`;
+  element.textContent = text;
+  element.className = `message ${type}`;
 
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 // Display vehicle requirements
 function requirement(vehicle) {
-    const requirements = [];
+  const requirements = [];
 
-    if (vehicle.size === "LARGE") {
-        requirements.push("Large vehicle");
-    }
+  if (vehicle.size === "LARGE") {
+    requirements.push("Large vehicle");
+  }
 
-    if (vehicle.needsEV) {
-        requirements.push("EV charging");
-    }
+  if (vehicle.needsEV) {
+    requirements.push("EV charging");
+  }
 
-    if (vehicle.needsAccessible) {
-        requirements.push("Accessible");
-    }
+  if (vehicle.needsAccessible) {
+    requirements.push("Accessible");
+  }
 
-    return requirements.join(", ") || "Normal";
+  return requirements.join(", ") || "Normal";
 }
 
-// Render vehicle allocation table
+// Render the vehicle table
 function renderVehicles(vehicles, spaces) {
-    const table = $("#vehicleTable");
+  const table = $("#vehicleTable");
 
-    if (!table) return;
+  if (!table) return;
 
-    // No default vehicles: show an empty state
-    if (vehicles.length === 0) {
-        table.innerHTML = `
+  if (!vehicles.length) {
+    table.innerHTML = `
       <tr>
         <td colspan="6" class="empty-cell">
           No vehicle requests yet. Add a vehicle to get started.
@@ -76,164 +76,232 @@ function renderVehicles(vehicles, spaces) {
       </tr>
     `;
 
-        $("#resultsCount").textContent = "0 records";
-        return;
-    }
+    $("#resultsCount").textContent = "0 records";
+    return;
+  }
 
-    // Display only vehicles returned by the backend
-    table.innerHTML = [...vehicles].reverse().map((vehicle) => {
-        const status = String(vehicle.status || "PENDING");
-        const statusClass = `status-${status.toLowerCase()}`;
+  table.innerHTML = [...vehicles].reverse().map((vehicle) => {
+    const status = String(vehicle.status || "PENDING");
+    const statusClass = `status-${status.toLowerCase()}`;
 
-        let action = "—";
+    let action = "—";
 
-        if (status === "PARKED") {
-            action = `
+    if (status === "PARKED") {
+      action = `
         <button
           class="small-button"
           data-depart="${esc(vehicle.id)}">
           Mark departed
         </button>
       `;
-        } else if (status === "PENDING" || status === "WAITING") {
-            action = '<span class="muted">Awaiting allocation</span>';
-        }
+    } else if (status === "PENDING" || status === "WAITING") {
+      action = '<span class="muted">Awaiting allocation</span>';
+    }
 
-        const assignedSpace = vehicle.spaceId || "—";
+    const assignedSpace = vehicle.spaceId || "—";
 
-        const space = spaces.find(
-            (item) => item.id === vehicle.spaceId
-        );
+    const space = spaces.find(
+      (item) => item.id === vehicle.spaceId
+    );
 
-        const distance = space ?
-            `${space.distance} m` :
-            "—";
+    const distance = space
+      ? `${space.distance} m`
+      : "—";
 
-        return `
+    return `
       <tr>
         <td>
           <strong>${esc(vehicle.name)}</strong><br>
           <span class="muted">${esc(vehicle.id)}</span>
         </td>
-
         <td>${esc(requirement(vehicle))}</td>
-
         <td>${esc(assignedSpace)}</td>
-
         <td>${esc(distance)}</td>
-
         <td>
           <span class="status ${statusClass}">
             ${esc(status)}
           </span>
         </td>
-
         <td>${action}</td>
       </tr>
     `;
-    }).join("");
+  }).join("");
 
-    $("#resultsCount").textContent = `${vehicles.length} records`;
+  $("#resultsCount").textContent = `${vehicles.length} records`;
 }
 
-// Refresh the dashboard using backend data
+// Refresh the dashboard from the backend
 async function refresh() {
-    const state = await api("/api/state");
+  const state = await api("/api/state");
 
-    const spaces = Array.isArray(state.spaces) ?
-        state.spaces :
-        [];
+  const spaces = Array.isArray(state.spaces)
+    ? state.spaces
+    : [];
 
-    const vehicles = Array.isArray(state.vehicles) ?
-        state.vehicles :
-        [];
+  const vehicles = Array.isArray(state.vehicles)
+    ? state.vehicles
+    : [];
 
-    const summary = state.summary || {};
+  const summary = state.summary || {};
 
-    $("#totalSpaces").textContent = summary.totalSpaces ? ? spaces.length;
-    $("#availableSpaces").textContent = summary.availableSpaces ? ? 0;
-    $("#occupiedSpaces").textContent = summary.occupiedSpaces ? ? 0;
-    $("#pendingVehicles").textContent = summary.pendingVehicles ? ? 0;
+  $("#totalSpaces").textContent =
+    summary.totalSpaces ?? spaces.length;
 
-    $("#parkingSubtitle").textContent =
-        `${summary.totalSpaces ?? spaces.length} spaces · live status`;
+  $("#availableSpaces").textContent =
+    summary.availableSpaces ?? 0;
 
-    // Map currently parked vehicles to their spaces
-    const parkedVehicles = new Map(
-        vehicles
-        .filter((vehicle) => vehicle.status === "PARKED" && vehicle.spaceId)
-        .map((vehicle) => [vehicle.spaceId, vehicle])
-    );
+  $("#occupiedSpaces").textContent =
+    summary.occupiedSpaces ?? 0;
 
-    // Render parking spaces
-    $("#parkingGrid").innerHTML = spaces.map((space) => {
-                const vehicle = parkedVehicles.get(space.id);
+  $("#pendingVehicles").textContent =
+    summary.pendingVehicles ?? 0;
 
-                const type = space.type === "NORMAL" ?
-                    "Normal" :
-                    space.type;
+  $("#parkingSubtitle").textContent =
+    `${summary.totalSpaces ?? spaces.length} spaces · live status`;
 
-                const specialClass =
-                    space.type === "EV" ?
-                    "ev" :
-                    space.type === "ACCESSIBLE" ?
-                    "accessible" :
-                    "";
+  // Associate parked vehicles with their spaces
+  const parkedVehicles = new Map(
+    vehicles
+      .filter((vehicle) =>
+        vehicle.status === "PARKED" && vehicle.spaceId
+      )
+      .map((vehicle) => [vehicle.spaceId, vehicle])
+  );
 
-                return `
-      <div class="space ${space.available ? "available" : "occupied"} ${specialClass}">
-        <span class="car-icon">
-          ${space.available ? "🅿️" : "🚗"}
-        </span>
+  // Render the parking lot
+  const parkingGrid = $("#parkingGrid");
 
-        <span class="space-id">${esc(space.id)}</span>
+  if (parkingGrid) {
+    parkingGrid.innerHTML = spaces.map((space) => {
+      const vehicle = parkedVehicles.get(space.id);
 
-        <span class="space-type">${esc(type)}</span>
+      const type = space.type === "NORMAL"
+        ? "Normal"
+        : space.type;
 
-        <span class="space-distance">
-          ${esc(space.distance)} m
-        </span>
+      let specialClass = "";
 
-        ${
-          vehicle
-            ? `<span class="space-type">${esc(vehicle.name)}</span>`
-            : ""
-        }
-      </div>
-    `;
-  }).join("");
+      if (space.type === "EV") {
+        specialClass = "ev";
+      } else if (space.type === "ACCESSIBLE") {
+        specialClass = "accessible";
+      }
+
+      return `
+        <div class="space ${
+          space.available ? "available" : "occupied"
+        } ${specialClass}">
+          <span class="car-icon">
+            ${space.available ? "🅿️" : "🚗"}
+          </span>
+          <span class="space-id">${esc(space.id)}</span>
+          <span class="space-type">${esc(type)}</span>
+          <span class="space-distance">
+            ${esc(space.distance)} m
+          </span>
+          ${
+            vehicle
+              ? `<span class="space-type">${esc(vehicle.name)}</span>`
+              : ""
+          }
+        </div>
+      `;
+    }).join("");
+  }
 
   renderVehicles(vehicles, spaces);
 }
 
-// Render comparison metrics and chart
+// Convert a numeric value safely for display
+function fmt(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number.toFixed(2) : "0.00";
+}
+
+// Clear comparison output
+function clearComparison() {
+  if (chart) {
+    chart.destroy();
+    chart = null;
+  }
+
+  const cards = $("#comparisonCards");
+
+  if (cards) {
+    cards.innerHTML = [
+      "Greedy cost",
+      "Hungarian cost",
+      "Greedy time",
+      "Hungarian time"
+    ].map((label) => `
+      <div class="metric-card">
+        <span>${label}</span>
+        <strong>—</strong>
+      </div>
+    `).join("");
+  }
+}
+
+// Render comparison results safely
 function renderComparison(data) {
+  // The frontend expects { greedy: {...}, hungarian: {...} }.
+  // Check this before accessing totalCost.
+  if (
+    !data ||
+    !data.greedy ||
+    !data.hungarian ||
+    typeof data.greedy !== "object" ||
+    typeof data.hungarian !== "object"
+  ) {
+    console.error(
+      "Unexpected /api/compare response:",
+      data
+    );
+
+    clearComparison();
+
+    message(
+      "The comparison API returned an unexpected response. Check backend/server.js.",
+      "error"
+    );
+
+    return false;
+  }
+
   const greedy = data.greedy;
   const hungarian = data.hungarian;
 
-  const fmt = (value) => Number(value ?? 0).toFixed(2);
+  const greedyCost = Number(greedy.totalCost ?? 0);
+  const hungarianCost = Number(hungarian.totalCost ?? 0);
 
-  $("#comparisonCards").innerHTML = `
-    <div class="metric-card">
-      <span>Greedy total cost</span>
-      <strong>${fmt(greedy.totalCost)}</strong>
-    </div>
+  const greedyAssigned = Number(greedy.vehiclesAssigned ?? 0);
+  const hungarianAssigned = Number(hungarian.vehiclesAssigned ?? 0);
 
-    <div class="metric-card">
-      <span>Hungarian total cost</span>
-      <strong>${fmt(hungarian.totalCost)}</strong>
-    </div>
+  const greedyTime = Number(greedy.executionTimeMs ?? 0);
+  const hungarianTime = Number(hungarian.executionTimeMs ?? 0);
 
-    <div class="metric-card">
-      <span>Greedy time</span>
-      <strong>${fmt(greedy.executionTimeMs)} ms</strong>
-    </div>
+  const cards = $("#comparisonCards");
 
-    <div class="metric-card">
-      <span>Hungarian time</span>
-      <strong>${fmt(hungarian.executionTimeMs)} ms</strong>
-    </div>
-  `;
+  if (cards) {
+    cards.innerHTML = `
+      <div class="metric-card">
+        <span>Greedy total cost</span>
+        <strong>${fmt(greedyCost)}</strong>
+      </div>
+      <div class="metric-card">
+        <span>Hungarian total cost</span>
+        <strong>${fmt(hungarianCost)}</strong>
+      </div>
+      <div class="metric-card">
+        <span>Greedy time</span>
+        <strong>${fmt(greedyTime)} ms</strong>
+      </div>
+      <div class="metric-card">
+        <span>Hungarian time</span>
+        <strong>${fmt(hungarianTime)} ms</strong>
+      </div>
+    `;
+  }
 
   if (chart) {
     chart.destroy();
@@ -242,7 +310,9 @@ function renderComparison(data) {
 
   const canvas = $("#comparisonChart");
 
-  if (!canvas || typeof Chart === "undefined") return;
+  if (!canvas || typeof Chart === "undefined") {
+    return true;
+  }
 
   chart = new Chart(canvas, {
     type: "bar",
@@ -258,18 +328,17 @@ function renderComparison(data) {
         {
           label: "Greedy",
           data: [
-            greedy.totalCost,
-            greedy.vehiclesAssigned,
-            greedy.executionTimeMs
+            greedyCost,
+            greedyAssigned,
+            greedyTime
           ]
         },
-
         {
           label: "Hungarian",
           data: [
-            hungarian.totalCost,
-            hungarian.vehiclesAssigned,
-            hungarian.executionTimeMs
+            hungarianCost,
+            hungarianAssigned,
+            hungarianTime
           ]
         }
       ]
@@ -292,6 +361,8 @@ function renderComparison(data) {
       }
     }
   });
+
+  return true;
 }
 
 // Add a vehicle submitted by the user
@@ -319,7 +390,6 @@ $("#vehicleForm").addEventListener("submit", async (event) => {
   try {
     await api("/api/vehicles", {
       method: "POST",
-
       body: JSON.stringify({
         name,
         size,
@@ -332,7 +402,9 @@ $("#vehicleForm").addEventListener("submit", async (event) => {
 
     await refresh();
 
-    message("Vehicle request added. Run an allocation algorithm when ready.");
+    message(
+      "Vehicle request added. Run an allocation algorithm when ready."
+    );
   } catch (error) {
     message(error.message, "error");
   }
@@ -346,9 +418,8 @@ $("#runBtn").addEventListener("click", async () => {
   button.textContent = "Allocating…";
 
   try {
-    const result = await api("/api/allocate", {
+    const response = await api("/api/allocate", {
       method: "POST",
-
       body: JSON.stringify({
         algorithm: $("#algorithmSelect").value
       })
@@ -356,15 +427,28 @@ $("#runBtn").addEventListener("click", async () => {
 
     await refresh();
 
-    const allocation = result.result;
+    // Support the documented response shape.
+    const result = response.result;
+
+    if (!result) {
+      console.error("Unexpected /api/allocate response:", response);
+
+      message(
+        "Allocation response is missing its result. Check backend/server.js.",
+        "error"
+      );
+
+      return;
+    }
 
     message(
-      `${allocation.algorithm}: ${allocation.vehiclesAssigned} assigned, ` +
-      `${allocation.vehiclesUnassigned} unassigned. ` +
-      `Total cost: ${Number(allocation.totalCost).toFixed(1)}.`
+      `${result.algorithm}: ${result.vehiclesAssigned} assigned, ` +
+      `${result.vehiclesUnassigned} unassigned. ` +
+      `Total cost: ${Number(result.totalCost ?? 0).toFixed(1)}.`
     );
 
-    renderComparison(await api("/api/compare"));
+    const comparison = await api("/api/compare");
+    renderComparison(comparison);
   } catch (error) {
     message(error.message, "error");
   } finally {
@@ -378,9 +462,9 @@ $("#compareBtn").addEventListener("click", async () => {
   try {
     const data = await api("/api/compare");
 
-    renderComparison(data);
-
-    message("Comparison complete. The parking lot was not changed.");
+    if (renderComparison(data)) {
+      message("Comparison complete. The parking lot was not changed.");
+    }
   } catch (error) {
     message(error.message, "error");
   }
@@ -393,14 +477,14 @@ $("#vehicleTable").addEventListener("click", async (event) => {
   if (!button) return;
 
   try {
-    const result = await api(
+    const response = await api(
       `/api/depart/${encodeURIComponent(button.dataset.depart)}`,
       { method: "POST" }
     );
 
     await refresh();
 
-    message(result.message);
+    message(response.message || "Vehicle departure recorded.");
   } catch (error) {
     message(error.message, "error");
   }
@@ -417,22 +501,7 @@ $("#resetBtn").addEventListener("click", async () => {
       method: "POST"
     });
 
-    if (chart) {
-      chart.destroy();
-      chart = null;
-    }
-
-    $("#comparisonCards").innerHTML = [
-      "Greedy cost",
-      "Hungarian cost",
-      "Greedy time",
-      "Hungarian time"
-    ].map((label) => `
-      <div class="metric-card">
-        <span>${label}</span>
-        <strong>—</strong>
-      </div>
-    `).join("");
+    clearComparison();
 
     await refresh();
 
